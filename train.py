@@ -51,7 +51,7 @@ def train():
     criterion = nn.CrossEntropyLoss(ignore_index=dataset.vocab.stoi["<PAD>"])
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    # Only finetune the CNN
+
     for name, param in model.encoderCNN.inception.named_parameters():
         if "fc.weight" in name or "fc.bias" in name:
             param.requires_grad = True
@@ -64,8 +64,6 @@ def train():
     model.train()
 
     for epoch in range(num_epochs):
-        # Uncomment the line below to see a couple of test cases
-        # print_examples(model, device, dataset)
 
         if save_model:
             checkpoint = {
