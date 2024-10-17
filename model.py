@@ -24,15 +24,17 @@ class DecoderRNN(nn.Module):
     def __init__(self, embed_size, hidden_size, vocab_size, num_layers):
         super(DecoderRNN, self).__init__()
         self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers)
-        self.linear = nn.Linear(hidden_size,vocab_size)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)  # Ensure LSTM expects batch first
+        self.linear = nn.Linear(hidden_size, vocab_size)
         self.dropout = nn.Dropout(0.5)
 
     def forward(self, features, captions):
         embeddings = self.dropout(self.embed(captions))
-        embeddings = torch.cat((features.unsqueeze(0), embeddings), dim=0)
+        features = features.unsqueeze(1)  
+        embeddings = torch.cat((features, embeddings), dim=1)
         hiddens, _ = self.lstm(embeddings)
         outputs = self.linear(hiddens)
+        outputs = outputs[:,:-1, :]
         return outputs
 
 
