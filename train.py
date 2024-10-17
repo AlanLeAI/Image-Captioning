@@ -4,11 +4,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
 from utils import save_checkpoint, load_checkpoint, print_examples
-from get_loader import get_loader
-
-
+from transformers import AutoTokenizer
 from model import CNNtoRNN
+from dataset import FlickrDataset
+
 
 
 def train():
@@ -21,15 +22,12 @@ def train():
         ]
     )
 
-    train_loader, dataset = get_loader(
-        root_folder="archive/images",
-        annotation_file="archive/captions.txt",
-        transform=transform,
-        num_workers=2,
-    )
+    tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
+    dataset = FlickrDataset('flickr', 'captions.txt', tokenizer, transform= transform)
+    train_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=2)
 
     torch.backends.cudnn.benchmark = True
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     load_model = False
     save_model = True
     train_CNN = False
@@ -37,7 +35,7 @@ def train():
     # Hyperparameters
     embed_size = 256
     hidden_size = 256
-    vocab_size = len(dataset.captions)
+    vocab_size = tokenizer.vocab_size
     num_layers = 1
     learning_rate = 3e-4
     num_epochs = 10
@@ -48,7 +46,7 @@ def train():
 
     # initialize model, loss etc
     model = CNNtoRNN(embed_size, hidden_size, vocab_size, num_layers).to(device)
-    criterion = nn.CrossEntropyLoss(ignore_index=dataset.vocab.stoi["<PAD>"])
+    criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 
@@ -78,8 +76,7 @@ def train():
         ):
             imgs = imgs.to(device)
             captions = captions.to(device)
-
-            outputs = model(imgs, captions[:-1])
+            outputs = model(imgs, captions)
             loss = criterion(
                 outputs.reshape(-1, outputs.shape[2]), captions.reshape(-1)
             )
